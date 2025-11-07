@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Layered Infinite Card Carousel</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Inter and the new Lato font for the heart text -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;900;700&family=Lato:wght@100&display=swap" rel="stylesheet">
+    
+    <script src="https://w.soundcloud.com/player/api.js"></script>
+    <style>
+        /* --- Configuration Variables (Desktop Default) --- */
+        :root {
+            --frame-height: 50vh; 
+            --animation-duration: 0.6s; 
+            --glow-color: #ec4899; 
+            
+            /* 3D Cylinder Specifics */
+            --card-width: 280px;
+            --carousel-radius: 400px; 
+            
+            /* Love Is Love Heart Colors */
+            --color-red: #ec2d73;
+            --color-orange: #eb5324;
+            --color-yellow: #fdc800;
+            --color-green: #47b264;
+            --color-blue: #1470bd;
+            --color-purple: #76469a;
+        }
+
+        /* --- Mobile Adjustments (Max Width 640px) --- */
+        @media (max-width: 640px) {
+            :root {
+                --frame-height: 35vh; /* Reduced height to save screen space */
+                --card-width: 180px; /* Smaller cards */
+                --carousel-radius: 250px; /* Reduced radius to fit cards tighter */
+            }
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden; /* Prevent horizontal scrolling */
+            background-color: #0d1117; 
+            color: white;
+            min-height: 100vh;
+        }
+
+        /* --- FIREWORKS BACKGROUND CANVAS --- */
+        #birthday {
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            z-index: 0; 
+        }
+        
+        /* Initial Splash Screen Styling */
+        #startScreen {
+            z-index: 101; 
+        }
+
+        /* --- Carousel Container Styling (Set perspective) --- */
+        #carousel-container {
+            width: 100vw;
+            height: var(--frame-height);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            perspective: 1500px; 
+            position: relative;
+            z-index: 50; 
+        }
+
+        /* --- Carousel Inner (The rotating element) --- */
+        #carousel {
+            width: var(--card-width); 
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transform: translateZ(calc(var(--carousel-radius) * -1)); 
+        }
+
+        /* --- Individual Card Styling (Fixed in 3D Space) --- */
+        .carousel-card {
+            position: absolute;
+            width: var(--card-width);
+            text-align: center;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background: rgba(22, 27, 34, 0.95); 
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+            transform-style: preserve-3d;
+            cursor: pointer;
+            padding: 1rem;
+            
+            left: 50%;
+            top: 0;
+            margin-left: calc(var(--card-width) / -2); 
+            transform-origin: 50% 50%; 
+            backface-visibility: hidden; 
+            
+            transition: opacity var(--animation-duration) ease, 
+                        scale var(--animation-duration) ease, 
+                        box-shadow var(--animation-duration) ease;
+        }
+
+
+        /* --- Active/Center Card Effects --- */
+        .carousel-card.active {
+            box-shadow: 0 0 40px var(--glow-color); 
+            border-color: var(--glow-color);
+        }
+
+        .card-content h3 {
+            font-weight: 700;
+            font-size: 1.25rem;
+            color: var(--glow-color);
+        }
+        
+        /* Mobile adjustment for card content text */
+        @media (max-width: 640px) {
+            .card-content h3 {
+                font-size: 1rem;
+            }
+            .card-content p {
+                font-size: 0.75rem;
+            }
+            .carousel-card {
+                padding: 0.75rem;
+            }
+        }
+
+
+        /* --- Navigation Button Styling --- */
+        .nav-button {
+            z-index: 150; 
+            opacity: 0.8;
+            transition: opacity 0.3s, transform 0.3s;
+        }
+
+        .nav-button:hover {
+            opacity: 1;
+            transform: scale(1.05);
+        }
+        
+        /* --------------------------------- */
+        /* --- LOVE IS LOVE HEART STYLES --- */
+        /* --------------------------------- */
+        .flex-container {
+            width: 100%;
+            height: auto;
+            position: relative;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            padding-top: 3rem; 
+        }
+        
+        .unit {
+            text-align: center;
+        }
+
+        .unit p.love-is-love {
+            margin-top: 20px; 
+            font-family: 'Lato', sans-serif;
+            font-weight: 100;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: white;
+            font-size: 1.25rem;
+        }
+
+        .heart {
+            position: relative;
+            font-size: 0;
+            width: 138px;
+            height: 80px; 
+            margin: 0 auto;
+        }
+        
+        [class*="heart-piece-"] {
+            position: absolute;
+            top: -5px;
+            width: 10px;
+            height: 10px;
+            border-radius: 5px;
+        }
+
+        /* Mobile specific heart scaling and header compression */
+        @media (max-width: 640px) {
+            .flex-container {
+                padding-top: 1rem; /* Less top padding */
+            }
+            .heart {
+                /* Scale the fixed size graphic down */
+                transform: scale(0.8); 
+                height: 60px;
+                /* Adjust for the new origin point caused by scaling */
+                transform-origin: center top; 
+            }
+            .unit p.love-is-love {
+                font-size: 1rem;
+                margin-top: 5px; /* Reduced margin */
+            }
+            header h2 {
+                font-size: 2rem;
+            }
+        }
+
+
+        /* Set Colors, Left Position, and Initial Animation */
+        .heart-piece-0 { left: 0px; background-color: var(--color-red); animation-delay: 0.0s; animation: piece-0 3.2s infinite; }
+        .heart-piece-1 { left: 16px; background-color: var(--color-orange); animation-delay: 0.15s; animation: piece-1 3.2s infinite; }
+        .heart-piece-2 { left: 32px; background-color: var(--color-yellow); animation-delay: 0.30s; animation: piece-2 3.2s infinite; }
+        .heart-piece-3 { left: 48px; background-color: var(--color-green); animation-delay: 0.45s; animation: piece-3 3.2s infinite; }
+        .heart-piece-4 { left: 64px; background-color: var(--color-blue); animation-delay: 0.60s; animation: piece-4 3.2s infinite; }
+        .heart-piece-5 { left: 80px; background-color: var(--color-purple); animation-delay: 0.75s; animation: piece-3 3.2s infinite; }
+        .heart-piece-6 { left: 96px; background-color: var(--color-red); animation-delay: 0.90s; animation: piece-2 3.2s infinite; }
+        .heart-piece-7 { left: 112px; background-color: var(--color-orange); animation-delay: 1.05s; animation: piece-1 3.2s infinite; }
+        .heart-piece-8 { left: 128px; background-color: var(--color-yellow); animation-delay: 1.20s; animation: piece-0 3.2s infinite; }
+        
+        /* Keyframes remain fixed */
+        @keyframes piece-4 {
+          0%, 10%, 90%, 100%{ height: 10px; top: -5px; }
+          45%, 55%{ height: 94px; top: -23px; }
+        }
+
+        @keyframes piece-3 {
+          0%, 10%, 90%, 100%{ height: 10px; top: -5px; }
+          45%, 55%{ height: 90px; top: -31px; }
+        }
+
+        @keyframes piece-2 {
+          0%, 10%, 90%, 100%{ height: 10px; top: -5px; }
+          45%, 55%{ height: 80px; top: -37px; }
+        }
+
+        @keyframes piece-1 {
+          0%, 10%, 90%, 100%{ height: 10px; top: -5px; }
+          45%, 55%{ height: 60px; top: -31px; }
+        }
+
+        @keyframes piece-0 {
+          0%, 10%, 90%, 100%{ height: 10px; top: -5px; }
+          45%, 55%{ height: 30px; top: -15px; }
+        }
+    </style>
+</head>
+<body>
+    
+    <!-- Initial Splash Screen -->
+    <div id="startScreen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-900 transition-opacity duration-1000 ease-in-out">
+        <h1 class="text-6xl sm:text-5xl font-extrabold text-pink-500 mb-6 tracking-tight">
+            HAPPY MONTHSARY ♡
+        </h1>
+        <p class="text-xl sm:text-lg text-gray-300 mb-10">A Photo Card for you my Love</p>
+        <button id="startButton" class="px-8 py-3 bg-pink-600 text-white font-bold rounded-full text-lg hover:bg-pink-700 transition duration-300 transform hover:scale-105 shadow-xl">
+            Open
+        </button>
+    </div>
+    
+    <!-- Main Content Container (Hidden until start) -->
+    <div id="mainContainer" class="min-h-screen relative transition-all duration-1000 flex flex-col items-center justify-center z-10">
+        
+        <!-- SECTION FOR FIREWORKS CANVAS (Absolute inside #mainContainer) -->
+        <canvas id="birthday"></canvas>
+
+        <!-- Wrapper for all main content, ensuring it is above the canvas -->
+        <div class="relative z-20 w-full flex flex-col items-center">
+
+            <!-- NEW HEART ANIMATION AND TEXT -->
+            <div class="flex-container">
+                <div class="unit">
+                    <div class="heart">
+                        <div class="heart-piece-0"></div>
+                        <div class="heart-piece-1"></div>
+                        <div class="heart-piece-2"></div>
+                        <div class="heart-piece-3"></div>
+                        <div class="heart-piece-4"></div>
+                        <div class="heart-piece-5"></div>
+                        <div class="heart-piece-6"></div>
+                        <div class="heart-piece-7"></div>
+                        <div class="heart-piece-8"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- END NEW HEART ANIMATION AND TEXT -->
+            
+            <!-- Header has adjusted vertical padding (py-4 for mobile) -->
+            <header class="text-center py-4 md:py-8"> 
+                <h2 class="text-3xl md:text-4xl font-black text-pink-500 tracking-tight">Happy Monthsary Love</h2>
+            </header>
+
+            <!-- Carousel Frame -->
+            <div id="carousel-container">
+
+                <!-- Navigation Buttons (Moved closer to edge on mobile: left-2/right-2) -->
+                <button id="prevButton" class="nav-button absolute left-2 sm:left-4 lg:left-12 p-3 bg-gray-700/50 rounded-full backdrop-blur-sm shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+                
+                <div id="carousel" class="w-full h-full relative">
+                    <!-- Cards will be generated here by JavaScript -->
+                </div>
+                
+                <button id="nextButton" class="nav-button absolute right-2 sm:right-4 lg:right-12 p-3 bg-gray-700/50 rounded-full backdrop-blur-sm shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Detail/Metadata Section (Below the Carousel - reduced margin on mobile) -->
+            <div id="cardDetails" class="mt-8 md:mt-16 max-w-2xl mx-auto p-4 transition-opacity duration-500 opacity-0">
+                <h3 class="text-2xl sm:text-3xl font-bold text-center mb-2 sm:mb-4 text-pink-400" id="detailTitle"></h3>
+                <p class="text-gray-300 text-center text-base sm:text-lg px-2" id="detailDescription"></p>
+            </div>
+
+            <iframe hidden width="100%" height="300" scrolling="no" frameborder="no" allow="autoplay" src="https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/soundcloud%253Atracks%253A674933093&color=%23ff5500&auto_play=true&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true&visual=true"></iframe><div style="font-size: 10px; color: #cccccc;line-break: anywhere;word-break: normal;overflow: hidden;white-space: nowrap;text-overflow: ellipsis; font-family: Interstate,Lucida Grande,Lucida Sans Unicode,Lucida Sans,Garuda,Verdana,Tahoma,sans-serif;font-weight: 100;"><a href="https://soundcloud.com/mennaabdalla" title="Menna Abdullah" target="_blank" style="color: #cccccc; text-decoration: none;">Menna Abdullah</a> · <a href="https://soundcloud.com/mennaabdalla/taylor-swift-lover-on-bbc" title="Taylor Swift - Lover (Live Lounge)" target="_blank" style="color: #cccccc; text-decoration: none;"></a></div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Data Model for Carousel Cards ---
+        const originalImages = [
+            {
+                id: 1,
+                title: "Last Date Before LDR",
+                description: "Last na sundo sa work mo. Kumain ng Inasal, tapos unexpected sa isda na may sabaw",
+                image: "image/01.jpg"
+            },
+            {
+                id: 2,
+                title: "Fast Date",
+                description: "Pumunta sa duty mo para lang kumain, nagmamadali pa bumalik sa office.",
+                image: "image/02.jpg"
+            },
+            {
+                id: 3,
+                title: "Plaza Date",
+                description: "Nagdate na may third wheel, tapos nakita ng mama mo na nagwwalking.",
+                image: "image/03.jpg"
+            },
+            {
+                id: 4,
+                title: "Samgyupsal Date",
+                description: "Nagsamgyup kasi gusto matry yung bagong open na store. Hindi ko matandaan kung ano name, basta may Black siguro.",
+                image: "image/04.jpg"
+            },
+            {
+                id: 5,
+                title: "Ayala Date",
+                description: "Syempre gala ulit kasi minsan lang makagala. Hindi ko matandaan ginawa natin dito, parang nagshopping at kumain.",
+                image: "image/05.jpg"
+            },
+            {
+                id: 6,
+                title: "Anabelle's Date",
+                description: "Hindi ko alam kung tama spelling basta ganyan. Sinundo ulit sa work para kumain ng lunch tapos naghalfday. Syempre napalaban pag-uwi.",
+                image: "image/06.jpg"
+            },
+            {
+                id: 7,
+                title: "Seafood Date",
+                description: "Dumayo pa sa binalbagan para mag seafood pero ang init naman. Goods naman ang food nila. Naghanap ng iced coffee.",
+                image: "image/07.jpg"
+            },
+            {
+                id: 8,
+                title: "Ilog Date",
+                description: "Ilog yung lugar pero sa dagat talaga yan. Hindi ulit nagduty o nagclass? Basta hindi pumasok. First time magdate sa dagat.",
+                image: "image/08.jpg"
+            },
+            {
+                id: 9,
+                title: "BCD Plaza Date",
+                description: "Nagdate sa bacolod para gumala at kumain syempre, pero nagpic lang kami dyan hindi tumambay. May nakita pa naglalandian sa plaza.",
+                image: "image/09.jpg"
+            },
+            {
+                id: 10,
+                title: "Milktea Date",
+                description: "Nasa City Hall ka pa nagwwork dito, tapos 15 mins break time sa hapon pero parang hindi na 15 mins, kasi naglandian na sa labas.",
+                image: "image/10.jpg"
+            },
+            {
+                id: 11,
+                title: "Wedding Ceremony",
+                description: "Syempre nakita mo ako dyan, tapos nagulat ka kasi ang POGI ko kaya nagpapicture ka sakin(✌️). Wedding ng pinsan at abay ako tama ba? tapos nag aassist ka? Di ko alam basta umattend.",
+                image: "image/11.jpg"
+            },
+            {
+                id: 12,
+                title: "BCD Date",
+                description: "Sa bacolod ulit to, pero di ko sure kung sa ribshack na resto o dun sa margie's na kainan basta kumain ulit.",
+                image: "image/12.jpg"
+            },
+        ];
+
+        // --- 3D & Infinite Scroll Constants ---
+        const REAL_LENGTH = originalImages.length; // 6
+        const CLONE_COUNT = 2; // Number of cards to clone on each side for seamless transition
+        const CARD_ANGLE = 360 / REAL_LENGTH; // Angle between each real card (60 degrees)
+
+        // Get the CSS variables for use in JS
+        const getCssVariable = (name) => {
+            const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+            return parseFloat(value.replace(/[^0-9.]/g, ''));
+        };
+
+        let RADIUS = getCssVariable('--carousel-radius'); // The distance cards are translated out
+        let transitionDuration = getCssVariable('--animation-duration') * 1000;
+
+        let cardsData = []; 
+        let cards = [];     
+        let currentIndex = CLONE_COUNT; // Start on the first REAL card (index 2)
+        
+        // --- AUTOSLIDE VARIABLES ---
+        const AUTO_SLIDE_INTERVAL = 4000; 
+        let autoSlideTimer = null;
+
+
+        // ------------------------------------
+        // --- FIREWORKS CANVAS LOGIC ---
+        // ------------------------------------
+        
+        // Define global variables used by the Fireworks code
+        let canvas, ctx, then, birthday;
+
+        // helper functions
+        const PI2 = Math.PI * 2;
+        const random = (min, max) => Math.random() * (max - min + 1) + min | 0;
+        const timestamp = _ => new Date().getTime();
+
+        /**
+         * Generates coordinates for a heart shape using a parametric equation.
+         */
+        const getHeartCoordinates = (count, size) => {
+            const points = [];
+            const scaleFactor = size / 18; 
+            
+            for (let i = 0; i < count; i++) {
+                const t = (PI2 * i) / count;
+                const x = scaleFactor * 16 * Math.pow(Math.sin(t), 3);
+                const y = scaleFactor * - (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+                points.push({ x: x | 0, y: y | 0 });
+            }
+            return points;
+        };
+
+
+        // container
+        class Birthday {
+            constructor() {
+                this.resize()
+                this.fireworks = []
+                this.counter = 0
+            }
+            
+            resize() {
+                if (!canvas) return; 
+
+                this.width = canvas.width = canvas.parentElement.clientWidth;
+                let center = this.width / 2 | 0
+                this.spawnA = center - center / 4 | 0
+                this.spawnB = center + center / 4 | 0
+                
+                this.height = canvas.height = canvas.parentElement.clientHeight;
+                this.spawnC = this.height * .1
+                this.spawnD = this.height * .5
+            }
+            
+            onClick(evt) {
+                // Check if the click occurred on a card or button to prevent interference
+                const target = evt.target;
+                if (target.closest('.carousel-card') || target.closest('.nav-button') || target.closest('#startButton')) {
+                    return;
+                }
+                
+                const rect = canvas.getBoundingClientRect();
+                let x = (evt.clientX || evt.touches && evt.touches[0].pageX) - rect.left;
+                let y = (evt.clientY || evt.touches && evt.touches[0].pageY) - rect.top;
+                
+                // When clicked, launch a Heart-shaped firework
+                let count = random(3,5)
+                for(let i = 0; i < count; i++) this.fireworks.push(new Firework(
+                    random(this.spawnA, this.spawnB),
+                    this.height,
+                    x,
+                    y,
+                    random(0, 260),
+                    random(40, 150))) 
+                        
+                this.counter = -1
+            }
+            
+            update(delta) {
+                if (!ctx) return; 
+
+                ctx.globalCompositeOperation = 'hard-light'
+                ctx.fillStyle = `rgba(13, 17, 23, ${ 5 * delta })` 
+                ctx.fillRect(0, 0, this.width, this.height)
+
+                ctx.globalCompositeOperation = 'lighter'
+                for (let firework of this.fireworks) firework.update(delta)
+
+                // auto-launch
+                this.counter += delta * 3 
+                if (this.counter >= 1) {
+                    this.fireworks.push(new Firework(
+                        random(this.spawnA, this.spawnB),
+                        this.height,
+                        random(0, this.width),
+                        random(this.spawnC, this.spawnD),
+                        random(0, 360),
+                        random(40, 150))) 
+                    this.counter = 0
+                }
+
+                // remove the dead fireworks
+                if (this.fireworks.length > 1000) this.fireworks = this.fireworks.filter(firework => !firework.dead)
+            }
+        }
+
+        class Firework {
+            constructor(x, y, targetX, targetY, shade, offsprings) {
+                this.dead = false
+                this.offsprings = offsprings 
+
+                this.x = x
+                this.y = y
+                this.targetX = targetX
+                this.targetY = targetY
+
+                this.shade = shade
+                this.history = []
+            }
+            update(delta) {
+                if (this.dead) return
+                if (!ctx) return;
+
+                let xDiff = this.targetX - this.x
+                let yDiff = this.targetY - this.y
+                if (Math.abs(xDiff) > 3 || Math.abs(yDiff) > 3) { 
+                    this.x += xDiff * 2 * delta
+                    this.y += yDiff * 2 * delta
+
+                    this.history.push({
+                        x: this.x,
+                        y: this.y
+                    })
+
+                    if (this.history.length > 20) this.history.shift()
+
+                } else {
+                    // Explode!
+                    if (this.offsprings && !this.madeChilds) {
+                        
+                        // --- HEART SHAPE GENERATION ---
+                        const heartPoints = getHeartCoordinates(this.offsprings, this.offsprings * 0.8);
+                        
+                        for (const point of heartPoints) {
+                            let targetX = this.x + point.x;
+                            let targetY = this.y + point.y;
+                            birthday.fireworks.push(new Firework(this.x, this.y, targetX, targetY, this.shade, 0));
+                        }
+                        // --- END HEART SHAPE GENERATION ---
+
+                        this.madeChilds = true;
+                    }
+                    this.history.shift()
+                }
+                
+                if (this.history.length === 0) this.dead = true
+                else if (this.offsprings) {	
+                    // Drawing the main firework trail
+                    for (let i = 0; this.history.length > i; i++) {
+                        let point = this.history[i]
+                        ctx.beginPath()
+                        ctx.fillStyle = 'hsl(' + this.shade + ',100%,' + i + '%)'
+                        ctx.arc(point.x, point.y, 1, 0, PI2, false) 
+                        ctx.fill()
+                    }	
+                } else {
+                    // Drawing the explosion particles
+                    ctx.beginPath()
+                    ctx.fillStyle = 'hsl(' + this.shade + ',100%,50%)'
+                    ctx.arc(this.x, this.y, 1, 0, PI2, false) 
+                    ctx.fill()
+                }
+            }
+        }
+
+        function startFireworks() {
+            canvas = document.getElementById('birthday');
+            ctx = canvas.getContext('2d');
+
+            then = timestamp();
+
+            birthday = new Birthday();
+            
+            window.onresize = () => {
+                birthday.resize();
+                // Ensure the canvas resize handler is called within the general resize debouncer
+            }; 
+            document.getElementById('mainContainer').onclick = evt => birthday.onClick(evt);
+            document.getElementById('mainContainer').ontouchstart = evt => birthday.onClick(evt);
+            
+            birthday.resize(); 
+
+            // Main Animation Loop
+            (function loop(){
+                requestAnimationFrame(loop)
+                let now = timestamp()
+                let delta = now - then
+                then = now
+                birthday.update(delta / 1000)
+            })()
+        }
+        
+        
+        // ------------------------------------
+        // --- CORE CAROUSEL LOGIC ---
+        // ------------------------------------
+
+        /**
+         * Clamps a value between a minimum and maximum.
+         */
+        const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
+
+        /**
+         * Clones data to create a seamless looping array.
+         */
+        function setupClonedData() {
+            const tail = originalImages.slice(-CLONE_COUNT);
+            const head = originalImages.slice(0, CLONE_COUNT);
+            cardsData = [...tail, ...originalImages, ...head];
+        }
+
+        /**
+         * Generates the initial card DOM elements and appends them to the carousel.
+         */
+        function initializeCarousel() {
+            const carousel = document.getElementById('carousel');
+            
+            setupClonedData();
+
+            cardsData.forEach((data, index) => {
+                const card = document.createElement('div');
+                card.className = 'carousel-card';
+                card.dataset.index = index; 
+                // The index within the 0-5 range used for 3D positioning
+                const realIndex = (index - CLONE_COUNT + REAL_LENGTH) % REAL_LENGTH;
+                card.dataset.realIndex = realIndex;
+
+                card.innerHTML = `
+                    <div class="card-image w-full overflow-hidden rounded-lg mb-3 flex-grow">
+                         <img src="${data.image}" alt="${data.title}" class="w-full h-full object-cover" 
+                              onerror="this.onerror=null; this.src='https://placehold.co/280x200/30363d/c9d1d9?text=Image+Not+Found';" />
+                    </div>
+                `;
+                carousel.appendChild(card);
+                cards.push(card);
+                
+                // Calculate the fixed 3D position (rotate then translate)
+                const rotation = realIndex * CARD_ANGLE;
+                card.style.transform = `rotateY(${rotation}deg) translateZ(${RADIUS}px)`;
+            });
+            
+            document.getElementById('prevButton').addEventListener('click', () => {
+                navigate(-1);
+            });
+            document.getElementById('nextButton').addEventListener('click', () => {
+                navigate(1);
+            });
+            
+            applyCardTransforms();
+            startAutoSlide(); 
+        }
+        
+        /**
+         * Starts the automatic sliding of the carousel.
+         */
+        function startAutoSlide() {
+            if (autoSlideTimer === null) {
+                autoSlideTimer = setInterval(() => {
+                    navigate(1); 
+                }, AUTO_SLIDE_INTERVAL);
+            }
+        }
+        
+        /**
+         * Stops the automatic sliding of the carousel.
+         */
+        function stopAutoSlide() {
+            if (autoSlideTimer !== null) {
+                clearInterval(autoSlideTimer);
+                autoSlideTimer = null;
+            }
+        }
+
+
+        /**
+         * Applies the 3D CSS transforms (Cylinder Rotation) to the carousel container.
+         * Individual cards maintain a fixed position based on their real index.
+         */
+        function applyCardTransforms() {
+            // Re-read CSS variables on transform application to pick up media query changes
+            RADIUS = getCssVariable('--carousel-radius'); 
+            transitionDuration = getCssVariable('--animation-duration') * 1000;
+            
+            const carousel = document.getElementById('carousel');
+            
+            // 1. Determine the REAL card index that should be at the front (0 degrees)
+            const currentRealIndex = (currentIndex - CLONE_COUNT + REAL_LENGTH) % REAL_LENGTH;
+            updateDetails(originalImages[currentRealIndex]);
+            
+            // 2. Calculate the rotation required for the CAROUSEL CONTAINER
+            const requiredRotation = -currentRealIndex * CARD_ANGLE;
+            
+            // 3. Apply rotation to the carousel container
+            carousel.style.transform = `translateZ(-${RADIUS}px) rotateY(${requiredRotation}deg)`;
+
+            // 4. Update card opacity, scale, and zIndex based on proximity to the front
+            cards.forEach((card) => {
+                const realCardIndex = parseInt(card.dataset.realIndex);
+                
+                // Recalculate fixed card position based on new RADIUS
+                const rotation = realCardIndex * CARD_ANGLE;
+                card.style.transform = `rotateY(${rotation}deg) translateZ(${RADIUS}px)`;
+
+
+                // Calculate angular distance to the front (0deg)
+                let distance = Math.abs(realCardIndex - currentRealIndex);
+                distance = Math.min(distance, REAL_LENGTH - distance);
+
+                let opacity, zIndex, scale;
+
+                if (distance === 0) {
+                    // Front card
+                    scale = 1;
+                    opacity = 1;
+                    zIndex = 100;
+                    card.classList.add('active');
+                } else {
+                    // Other cards: scale down, fade out, decrease z-index
+                    scale = clamp(1 - distance * 0.05, 0.8, 1);
+                    opacity = clamp(1 - distance * 1, 0.05, 1);
+                    zIndex = 100 - distance;
+                    card.classList.remove('active');
+                }
+
+                // Apply dynamic styles (3D position is fixed in initialization)
+                card.style.opacity = opacity;
+                card.style.zIndex = zIndex;
+                card.style.scale = scale; 
+            });
+
+            document.getElementById('prevButton').disabled = false;
+            document.getElementById('nextButton').disabled = false;
+        }
+
+        /**
+         * Moves the carousel to a new index and implements the seamless teleporting jump.
+         */
+        function navigate(direction) {
+            const carousel = document.getElementById('carousel');
+            
+            // 1. Move to the next index (might land on a clone)
+            currentIndex += direction;
+            
+            // 2. Apply transforms to execute the smooth CSS transition (move onto the clone)
+            applyCardTransforms(); 
+            
+            // 3. Check boundaries for the infinite loop logic
+            if (currentIndex < CLONE_COUNT || currentIndex >= cardsData.length - CLONE_COUNT) {
+                
+                // Wait for the CSS transition to finish before snapping
+                setTimeout(() => {
+                    // Calculate the new index within the REAL content zone (the snap back)
+                    if (currentIndex < CLONE_COUNT) {
+                        currentIndex = cardsData.length - CLONE_COUNT * 2;
+                    } else if (currentIndex >= cardsData.length - CLONE_COUNT) { 
+                        currentIndex = CLONE_COUNT;
+                    }
+
+                    // Disable transition on the container for the instantaneous jump
+                    carousel.style.transition = 'none';
+
+                    // Apply transforms instantly to snap to the new position
+                    applyCardTransforms(); 
+                    
+                    // Re-enable transition after the snap
+                    setTimeout(() => {
+                        // Re-read duration in case media queries changed
+                        transitionDuration = getCssVariable('--animation-duration') * 1000;
+                        carousel.style.transition = `transform ${transitionDuration / 1000}s ease-in-out`; 
+                    }, 10); 
+                    
+                }, transitionDuration + 50); 
+            }
+        }
+        
+        /**
+         * Updates the detail section below the carousel.
+         */
+        function updateDetails(data) {
+            const detailsContainer = document.getElementById('cardDetails');
+            document.getElementById('detailTitle').textContent = data.title;
+            document.getElementById('detailDescription').textContent = data.description;
+
+            detailsContainer.style.opacity = '1';
+        }
+
+
+        // --- Start Experience Logic ---
+
+        /**
+         * Fades out the start screen and reveals the main container.
+         */
+        async function startExperience() {
+            const startScreen = document.getElementById('startScreen');
+            const mainContainer = document.getElementById('mainContainer');
+
+            // 1. Fade out start screen
+            startScreen.style.opacity = '0';
+            
+            // 2. Fade in main content
+            mainContainer.style.opacity = '1';
+            mainContainer.style.filter = 'blur(0)';
+            mainContainer.style.visibility = 'visible';
+            
+            // 3. Start Fireworks Logic
+            startFireworks();
+
+            // 4. Start Carousel Logic (Includes auto-slide start)
+            initializeCarousel(); 
+            
+            // Allow the screen to fade out before removing the element entirely
+            setTimeout(() => {
+                startScreen.remove();
+            }, 1000); 
+        }
+
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const startButton = document.getElementById('startButton');
+            if (startButton) {
+                startButton.addEventListener('click', startExperience);
+            }
+            
+            // Initializing the main container to 0 opacity
+            const mainContainer = document.getElementById('mainContainer');
+            mainContainer.style.opacity = '0';
+            mainContainer.style.filter = 'blur(5px)';
+            mainContainer.style.visibility = 'hidden'; 
+            
+            // Set initial transition on the carousel container so the first movement is smooth
+            const carousel = document.getElementById('carousel');
+            carousel.style.transition = `transform ${transitionDuration / 1000}s ease-in-out`;
+        });
+        
+        // Recalculate transforms if window resizes (waits 50ms to prevent performance issues)
+        window.addEventListener('resize', () => {
+            if (originalImages.length > 0) {
+                clearTimeout(window.resizeTimer);
+                window.resizeTimer = setTimeout(() => {
+                    // Re-read variables and re-apply transforms
+                    applyCardTransforms(); 
+                }, 50);
+            }
+        });
+
+        // Check if the SC object is available (API loaded)
+        if (window.SC) {
+            // Get a reference to the iframe element by its ID
+            const iframeElement = document.getElementById('sc-widget');
+            
+            // Create a new widget object from the iframe element
+            const widget = SC.Widget(iframeElement);
+
+            // Add an event listener for when the track finishes playing
+            widget.bind(SC.Widget.Events.FINISH, function() {
+                // When the track finishes, call the 'play()' method to start it over.
+                widget.play();
+                console.log('Track finished and restarted!');
+            });
+
+            // Optional: Log when the player is ready
+            widget.bind(SC.Widget.Events.READY, function() {
+                console.log('SoundCloud Widget is ready!');
+            });
+        } else {
+            console.error('SoundCloud Widget API not loaded.');
+        }
+    </script>
+</body>
+</html>
